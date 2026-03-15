@@ -418,7 +418,7 @@
         ],
 
         environments: [
-            { name: "Warm Valley", sky: 0xFF7E47, fog: 0xFF7E47, road: 0x4A3E3D, gnd: 0x6B8E23, sun: 0xFFD700, treeL: 0x228B22, treeT: 0x8B4513 },
+            { name: "Highway to CIMA School", sky: 0xFF7E47, fog: 0xFF7E47, road: 0x4A3E3D, gnd: 0x6B8E23, sun: 0xFFD700, treeL: 0x228B22, treeT: 0x8B4513 },
             { name: "Sahara Desert", sky: 0x87CEFA, fog: 0xEEDD82, road: 0x8B7355, gnd: 0xEEDD82, sun: 0xFFFFFF, treeL: 0x556B2F, treeT: 0xCD853F },
             { name: "Autumn Forest", sky: 0xCD5C5C, fog: 0xCD5C5C, road: 0x2F4F4F, gnd: 0x8B4513, sun: 0xFFA500, treeL: 0xFF4500, treeT: 0x3E2723 },
             { name: "Finish Line!", sky: 0xFFD700, fog: 0xFF8C00, road: 0x222222, gnd: 0x228B22, sun: 0xFFFFFF, treeL: 0xFFD700, treeT: 0x8B4513 }
@@ -510,11 +510,49 @@
             return bird;
         },
 
+        buildCloud: function() {
+            const cloud = new THREE.Group();
+            const mat = new THREE.MeshStandardMaterial({color: 0xffffff, roughness: 1, flatShading: true, transparent: true, opacity: 0.8});
+            const geo = new THREE.DodecahedronGeometry(15, 0);
+            for(let i=0; i<3; i++){
+                const m = new THREE.Mesh(geo, mat);
+                m.position.set(Math.random()*20-10, Math.random()*10-5, Math.random()*20-10);
+                m.scale.setScalar(Math.random()*0.8 + 0.4);
+                cloud.add(m);
+            }
+            cloud.userData = { isCloud: true };
+            return cloud;
+        },
+
+        buildMountain: function(colorHex) {
+            const geo = new THREE.ConeGeometry(200, 400, 5);
+            const mat = new THREE.MeshStandardMaterial({color: colorHex, flatShading: true, roughness: 1});
+            const mnt = new THREE.Mesh(geo, mat);
+            mnt.userData = { isMountain: true };
+            return mnt;
+        },
+
+        buildBuilding: function() {
+            const h = Math.random() * 80 + 30;
+            const w = Math.random() * 25 + 15;
+            const bGroup = new THREE.Group();
+            
+            const mat = new THREE.MeshStandardMaterial({color: Math.random() > 0.5 ? 0xaaaaaa : 0x7788aa, roughness: 0.6});
+            const body = new THREE.Mesh(new THREE.BoxGeometry(w, h, w), mat);
+            body.position.y = h/2;
+            body.castShadow = true;
+            bGroup.add(body);
+            
+            bGroup.userData = { isBuilding: true, height: h };
+            return bGroup;
+        },
+
         applyEnvironment: function(index) {
             const env = this.environments[index % this.environments.length];
 
             this.scene.background = new THREE.Color(env.sky);
-            this.scene.fog = new THREE.FogExp2(env.fog, 0.0020); 
+            // Reducimos un poco la niebla para poder ver montañas, nubes y edificios a lo lejos
+            this.scene.fog = new THREE.FogExp2(env.fog, 0.0012); 
             
             document.getElementById('env-name').innerText = env.name;
 
@@ -523,22 +561,28 @@
             this.birds.forEach(b => this.scene.remove(b)); this.birds = [];
             if(this.sunMesh) this.scene.remove(this.sunMesh);
 
-            const ground = new THREE.Mesh(new THREE.PlaneGeometry(3000, 3000), new THREE.MeshStandardMaterial({ color: env.gnd, roughness: 1 }));
+            const ground = new THREE.Mesh(new THREE.PlaneGeometry(4000, 4000), new THREE.MeshStandardMaterial({ color: env.gnd, roughness: 1 }));
             ground.rotation.x = -Math.PI / 2; ground.position.y = -0.2; ground.receiveShadow = true;
             this.scene.add(ground); this.terrain.push(ground);
 
-            const road = new THREE.Mesh(new THREE.PlaneGeometry(30, 3000), new THREE.MeshStandardMaterial({ color: env.road, roughness: 0.8 }));
+            const road = new THREE.Mesh(new THREE.PlaneGeometry(30, 4000), new THREE.MeshStandardMaterial({ color: env.road, roughness: 0.8 }));
             road.rotation.x = -Math.PI / 2; road.receiveShadow = true;
             this.scene.add(road); this.terrain.push(road);
 
             for(let i=0; i<60; i++) {
-                const line = new THREE.Mesh(new THREE.PlaneGeometry(0.8, 6), new THREE.MeshBasicMaterial({color: 0xffffff}));
-                line.rotation.x = -Math.PI / 2; line.position.set(0, 0.05, -i * 20);
-                this.scene.add(line); this.scenery.push(line);
+                const lineLeft = new THREE.Mesh(new THREE.PlaneGeometry(0.8, 6), new THREE.MeshBasicMaterial({color: 0xffffff}));
+                lineLeft.rotation.x = -Math.PI / 2; lineLeft.position.set(-4, 0.05, -i * 20);
+                lineLeft.userData = { isLine: true };
+                this.scene.add(lineLeft); this.scenery.push(lineLeft);
+
+                const lineRight = new THREE.Mesh(new THREE.PlaneGeometry(0.8, 6), new THREE.MeshBasicMaterial({color: 0xffffff}));
+                lineRight.rotation.x = -Math.PI / 2; lineRight.position.set(4, 0.05, -i * 20);
+                lineRight.userData = { isLine: true };
+                this.scene.add(lineRight); this.scenery.push(lineRight);
             }
 
             this.sunMesh = new THREE.Mesh(new THREE.SphereGeometry(150, 32, 32), new THREE.MeshBasicMaterial({ color: env.sun }));
-            this.sunMesh.position.set(50, 100, -1000);
+            this.sunMesh.position.set(50, 200, -1500);
             this.scene.add(this.sunMesh);
 
             if (index === 3) {
@@ -552,21 +596,51 @@
                         finishGroup.add(sq);
                     }
                 }
+                finishGroup.userData = { isFinishLine: true };
                 this.scene.add(finishGroup);
                 this.scenery.push(finishGroup); 
             }
 
-            for(let i=0; i<60; i++) {
+            // Agregando Montañas
+            for(let i=0; i<15; i++) {
+                let mnt = this.buildMountain(env.gnd);
+                mnt.material.color.lerp(new THREE.Color(env.sky), 0.25); // Mezclar con el cielo para efecto de distancia
+                let xPos = (Math.random() * 1200 + 400) * (Math.random() > 0.5 ? 1 : -1);
+                mnt.position.set(xPos, -20, -Math.random() * 3000);
+                this.scene.add(mnt); this.scenery.push(mnt);
+            }
+
+            // Agregando Nubes
+            for(let i=0; i<30; i++) {
+                let cloud = this.buildCloud();
+                cloud.position.set((Math.random()-0.5)*2000, Math.random()*150 + 150, -Math.random()*3000);
+                this.scene.add(cloud); this.scenery.push(cloud);
+            }
+
+            // Agregando Edificios (Sólo en Highway to CIMA School, que es index 0)
+            if (index === 0) {
+                for(let i=0; i<40; i++) {
+                    let b = this.buildBuilding();
+                    let xPos = (Math.random() * 200 + 50) * (Math.random() > 0.5 ? 1 : -1);
+                    b.position.set(xPos, 0, -Math.random() * 3000);
+                    this.scene.add(b); this.scenery.push(b);
+                }
+            }
+
+            // Aumentando número de árboles de 60 a 120
+            for(let i=0; i<120; i++) {
                 let tree = this.buildTree(env.treeL, env.treeT);
-                let xPos = (Math.random() * 80 + 20) * (Math.random() > 0.5 ? 1 : -1);
-                tree.position.set(xPos, 0, -Math.random() * 1500);
+                let xPos = (Math.random() * 200 + 20) * (Math.random() > 0.5 ? 1 : -1);
+                tree.position.set(xPos, 0, -Math.random() * 2500);
                 let scale = Math.random() * 1.5 + 0.5; tree.scale.setScalar(scale);
+                tree.userData = { isTree: true };
                 this.scene.add(tree); this.scenery.push(tree);
             }
 
-            for(let i=0; i<15; i++) {
+            // Aumentando número de aves de 15 a 30
+            for(let i=0; i<30; i++) {
                 let bird = this.buildBird();
-                bird.position.set((Math.random()-0.5)*200, Math.random()*40 + 20, -Math.random()*600);
+                bird.position.set((Math.random()-0.5)*400, Math.random()*60 + 20, -Math.random()*1500);
                 bird.userData = { speedX: (Math.random()-0.5)*0.5, speedZ: Math.random()*0.5 + 0.2, flapSpeed: Math.random()*0.2+0.1 };
                 this.scene.add(bird); this.birds.push(bird);
             }
@@ -609,7 +683,8 @@
                 
                 group.add(core); group.add(shell); group.add(line);
                 
-                group.position.set(this.lanes[i], size/2, -800);
+                // Reducimos la distancia inicial de -800 a -500 para que lleguen más rápido
+                group.position.set(this.lanes[i], size/2, -500);
                 group.userData = { isCorrect: ans.isCorrect, colorHex: laneColor.hex, w: size, core: core };
                 
                 this.scene.add(group); this.targets.push(group);
@@ -652,9 +727,24 @@
             this.scenery.forEach(s => {
                 s.position.z += moveAmount;
                 if(s.position.z > 50) {
-                    s.position.z -= 1000;
-                    if(s.geometry && s.geometry.type !== 'PlaneGeometry') {
-                        s.position.x = (Math.random() * 80 + 20) * (Math.random() > 0.5 ? 1 : -1);
+                    // Lógica de reseteo para cada tipo de escenario
+                    if (s.userData && s.userData.isLine) {
+                        s.position.z -= 1200; // Reciclar líneas
+                    } else if (s.userData && s.userData.isFinishLine) {
+                        // Dejar que la línea de meta pase
+                    } else {
+                        s.position.z -= 2500; // Mandar el resto de cosas muy atrás
+                        
+                        if (s.userData && s.userData.isMountain) {
+                            s.position.x = (Math.random() * 1200 + 400) * (Math.random() > 0.5 ? 1 : -1);
+                        } else if (s.userData && s.userData.isCloud) {
+                            s.position.x = (Math.random()-0.5)*2000;
+                            s.position.y = Math.random()*150 + 150;
+                        } else if (s.userData && s.userData.isBuilding) {
+                            s.position.x = (Math.random() * 200 + 50) * (Math.random() > 0.5 ? 1 : -1);
+                        } else if (s.userData && s.userData.isTree) {
+                            s.position.x = (Math.random() * 200 + 20) * (Math.random() > 0.5 ? 1 : -1);
+                        }
                     }
                 }
             });
@@ -665,7 +755,7 @@
                 b.position.z += b.userData.speedZ + moveAmount;
                 b.children[0].rotation.z = Math.sin(time * b.userData.flapSpeed) * 0.5;
                 b.children[1].rotation.z = -Math.sin(time * b.userData.flapSpeed) * 0.5;
-                if(b.position.z > 50) { b.position.z -= 600; b.position.x = (Math.random()-0.5)*200; }
+                if(b.position.z > 50) { b.position.z -= 1500; b.position.x = (Math.random()-0.5)*400; }
             });
 
             this.targets.forEach(t => {
@@ -691,9 +781,9 @@
         score: 0,
         energy: 100,
         
-        // Speed control variables
-        baseSpeed: 80, 
-        targetSpeed: 80, 
+        // Speed control variables (Aumentado de 80 a 100)
+        baseSpeed: 100, 
+        targetSpeed: 100, 
         zSpeed: 0,
         lastSpeedUpScore: 0,
         
@@ -882,8 +972,9 @@
             this.energy = 100;
             this.zSpeed = 0;
             
-            this.baseSpeed = 80;
-            this.targetSpeed = 80;
+            // Aumentamos la velocidad base inicial de 80 a 100
+            this.baseSpeed = 100;
+            this.targetSpeed = 100;
             this.lastSpeedUpScore = 0;
             this.isAccelerating = false;
             this.isBraking = false;
@@ -1112,7 +1203,7 @@
                 // --- LÓGICA DE CONTROLES MANUALES ---
                 let desiredSpeed = this.baseSpeed;
                 if (this.isAccelerating) {
-                    desiredSpeed = Math.min(250, this.baseSpeed + 100); 
+                    desiredSpeed = 375; // Modificado: Aceleración progresiva hasta 375 km/h
                     // SE ELIMINÓ LA PENALIZACIÓN DE ENERGÍA AL ACELERAR MANUALMENTE
                     // if(!this.waitingNext) this.energy -= 6 * dt; 
                 } else if (this.isBraking) {
