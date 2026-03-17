@@ -872,6 +872,18 @@
             const saved = localStorage.getItem('turboRacerScores');
             if (saved) {
                 this.leaderboard = JSON.parse(saved);
+                
+                // Migración automática para actualizar los puntajes si ya estaban guardados
+                let changed = false;
+                this.leaderboard.forEach(p => {
+                    if(p.name === "Jesus Rios" && p.score === 10090) { p.score = 5060; changed = true; }
+                    if(p.name === "Maria Flores" && p.score === 10000) { p.score = 5040; changed = true; }
+                });
+                if(changed) {
+                    this.leaderboard.sort((a, b) => b.score - a.score);
+                    localStorage.setItem('turboRacerScores', JSON.stringify(this.leaderboard));
+                }
+
                 if (this.leaderboard.length === 0) this.setDefaultLeaderboard();
             } else {
                 this.setDefaultLeaderboard();
@@ -885,8 +897,8 @@
             
             this.leaderboard = [
                 { name: "Hugo Luque", score: 10500, date: dateFormatted },
-                { name: "Jesus Rios", score: 10090, date: dateFormatted },
-                { name: "Maria Flores", score: 10000, date: dateFormatted }
+                { name: "Jesus Rios", score: 5060, date: dateFormatted },
+                { name: "Maria Flores", score: 5040, date: dateFormatted }
             ];
             localStorage.setItem('turboRacerScores', JSON.stringify(this.leaderboard));
         },
@@ -894,17 +906,29 @@
         renderLeaderboard: function() {
             const list = document.getElementById('leaderboard-list');
             list.innerHTML = '';
-            if (this.leaderboard.length === 0) {
+            
+            // Filtrar para mostrar SOLO los de 5000 puntos o más, limitando a 10 jugadores
+            const validRacers = this.leaderboard.filter(r => r.score >= 5000).slice(0, 10);
+
+            if (validRacers.length === 0) {
                 list.innerHTML = '<li class="text-center text-gray-400 italic">No racers yet. Be the first!</li>';
                 return;
             }
-            const medals = ['🥇', '🥈', '🥉'];
-            this.leaderboard.forEach((entry, idx) => {
+            
+            validRacers.forEach((entry, idx) => {
                 const dateStr = entry.date ? `<div class="text-xs text-gray-400 font-normal ml-6">${entry.date}</div>` : '';
+                
+                // Íconos para los 3 primeros, números para el resto (del 4 al 10)
+                let rankIcon = '';
+                if (idx === 0) rankIcon = '🥇';
+                else if (idx === 1) rankIcon = '🥈';
+                else if (idx === 2) rankIcon = '🥉';
+                else rankIcon = `<span class="text-gray-400 font-mono text-sm inline-block w-6 text-right mr-1">${idx + 1}.</span>`;
+
                 list.innerHTML += `
                     <li class="flex justify-between items-center bg-gray-800 p-2 px-4 rounded-lg border-b border-gray-600">
                         <div class="flex flex-col">
-                            <span class="font-bold text-white tracking-wide">${medals[idx]} ${entry.name}</span>
+                            <span class="font-bold text-white tracking-wide">${rankIcon} ${entry.name}</span>
                             ${dateStr}
                         </div>
                         <span class="text-cyan-400 font-black">${entry.score} pts</span>
@@ -920,8 +944,13 @@
             const dateFormatted = now.toLocaleDateString() + ' ' + now.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
             
             this.leaderboard.push({ name: nameInput, score: this.score, date: dateFormatted });
+            
+            // Conservar solo puntajes >= 5000 y ordenar
+            this.leaderboard = this.leaderboard.filter(p => p.score >= 5000);
             this.leaderboard.sort((a, b) => b.score - a.score); 
-            this.leaderboard = this.leaderboard.slice(0, 3); 
+            
+            // Ampliar límite para guardar los 10 mejores en lugar de solo 3
+            this.leaderboard = this.leaderboard.slice(0, 10); 
             
             localStorage.setItem('turboRacerScores', JSON.stringify(this.leaderboard));
             location.reload(); 
